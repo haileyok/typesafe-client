@@ -1,4 +1,4 @@
-# typesafe-client (Rust)
+# typesafe-system-one
 
 Unofficial **async** Rust client for the [TypeSafe](https://typesafe.ai) AI
 **System One** API (Jev).
@@ -13,16 +13,22 @@ The behavior contract both clients in this repository implement is
 
 ## Install
 
-The crate isn't published to crates.io. Depend on it from git (cargo finds the
-package in the repository's `rust/` directory):
+```sh
+cargo add typesafe-system-one
+```
+
+or in `Cargo.toml`:
 
 ```toml
 [dependencies]
-typesafe-client = { git = "https://github.com/haileyok/typesafe-client" }
+typesafe-system-one = "0.1"
 ```
 
-or `cargo add typesafe-client --git https://github.com/haileyok/typesafe-client`.
-The minimum supported Rust version is **1.88**, set by the dependency tree.
+The library is imported as `typesafe_system_one`. The minimum supported Rust
+version is **1.88**, set by the dependency tree. (The crate lives in the
+[`haileyok/typesafe-client`](https://github.com/haileyok/typesafe-client)
+repository alongside a Go client. The `typesafe-client` name on crates.io
+belongs to an unrelated project.)
 
 The client is async only — there is no blocking client. Run it from an async
 runtime such as [tokio](https://crates.io/crates/tokio):
@@ -38,16 +44,16 @@ compiles in reqwest's system TLS backend. To use it, build your own
 `ClientBuilder::http_client`:
 
 ```toml
-typesafe-client = { git = "https://github.com/haileyok/typesafe-client", features = ["native-tls"] }
+typesafe-system-one = { version = "0.1", features = ["native-tls"] }
 ```
 
 ## Quick start
 
 ```rust,no_run
-use typesafe_client::{Client, Noul, Choice, Score, SystemOneRequest};
+use typesafe_system_one::{Client, Noul, Choice, Score, SystemOneRequest};
 
 #[tokio::main]
-async fn main() -> Result<(), typesafe_client::Error> {
+async fn main() -> Result<(), typesafe_system_one::Error> {
     let client = Client::from_env()?; // reads TYPESAFE_API_KEY
 
     let response = client
@@ -74,7 +80,7 @@ async fn main() -> Result<(), typesafe_client::Error> {
 
 ## Configuration
 
-Construct with [`Client::builder`](https://docs.rs/typesafe-client) or
+Construct with [`Client::builder`](https://docs.rs/typesafe-system-one) or
 `Client::from_env()`. Explicit options override environment variables, and
 environment variables override defaults. Environment values are trimmed; a
 blank value is ignored.
@@ -95,7 +101,7 @@ or in any error.
 
 ```rust
 # use std::time::Duration;
-# use typesafe_client::{Client, LogLevel, RetryPolicy};
+# use typesafe_system_one::{Client, LogLevel, RetryPolicy};
 let client = Client::builder()
     .api_key("sk-live-...")                      // else TYPESAFE_API_KEY
     .base_url("https://api.typesafe.ai")         // else TYPESAFE_BASE_URL
@@ -105,7 +111,7 @@ let client = Client::builder()
     .default_header("X-Agent-Client", "my-app")  // gateway attribution
     .log_level(LogLevel::Info)                   // else TYPESAFE_LOG_LEVEL, else off
     .build()?;
-# Ok::<(), typesafe_client::Error>(())
+# Ok::<(), typesafe_system_one::Error>(())
 ```
 
 ## Questions
@@ -116,7 +122,7 @@ IDs are the map keys: they are for your code only and are not sent to the
 model; the response keys its answers by the same IDs.
 
 ```rust
-# use typesafe_client::{Choice, Noul, Score, SystemOneRequest};
+# use typesafe_system_one::{Choice, Noul, Score, SystemOneRequest};
 # use serde_json::json;
 let request = SystemOneRequest::new("I was charged twice.")
     .model("jev-1.13.0") // optional per-request override
@@ -157,7 +163,7 @@ order.
 structured instructions work:
 
 ```rust
-# use typesafe_client::{Noul, Score, SystemOneRequest};
+# use typesafe_system_one::{Noul, Score, SystemOneRequest};
 # use serde_json::json;
 let request = SystemOneRequest::new(json!({
     "subject": "Charged twice",
@@ -206,8 +212,8 @@ Confidence (0 to 1) tells you when to route on an answer and when to fall
 back to a human. A common pattern:
 
 ```rust,no_run
-# use typesafe_client::{Choice, Client, SystemOneRequest};
-# async fn demo(client: Client) -> Result<(), typesafe_client::Error> {
+# use typesafe_system_one::{Choice, Client, SystemOneRequest};
+# async fn demo(client: Client) -> Result<(), typesafe_system_one::Error> {
 let response = client
     .system_one(
         SystemOneRequest::new("I was charged twice.").question(
@@ -261,10 +267,10 @@ Otherwise the raw body truncated to 200 characters + `…`; an empty body gives
 `"status code (no body)"`. The API key never appears in any error.
 
 ```rust,no_run
-# use typesafe_client::Error;
+# use typesafe_system_one::Error;
 # fn demo(error: Error) {
 match &error {
-    Error::Api(api) if api.kind == typesafe_client::ApiErrorKind::RateLimit => {
+    Error::Api(api) if api.kind == typesafe_system_one::ApiErrorKind::RateLimit => {
         eprintln!("rate limited; retry after {:?}", api.retry_after);
     }
     Error::Timeout { timeout } => eprintln!("timed out after {timeout:?}"),
@@ -285,8 +291,8 @@ client's policy for that call:
 
 ```rust,no_run
 # use std::time::Duration;
-# use typesafe_client::{Client, RequestOptions, RetryPolicy, SystemOneRequest, Noul};
-# async fn demo(client: Client) -> Result<(), typesafe_client::Error> {
+# use typesafe_system_one::{Client, RequestOptions, RetryPolicy, SystemOneRequest, Noul};
+# async fn demo(client: Client) -> Result<(), typesafe_system_one::Error> {
 let response = client
     .system_one_with(
         SystemOneRequest::new("text").question("a", Noul::new("q")),
@@ -324,8 +330,8 @@ Any base URL implementing the TypeSafe OpenAPI spec works. Add attribution
 headers with `.default_header(...)` (SDK-owned headers always win):
 
 ```rust,no_run
-# use typesafe_client::Client;
-# fn demo() -> Result<(), typesafe_client::Error> {
+# use typesafe_system_one::Client;
+# fn demo() -> Result<(), typesafe_system_one::Error> {
 // OpenRouter
 let openrouter = Client::builder()
     .api_key("sk-or-...")

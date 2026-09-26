@@ -1,0 +1,236 @@
+name: Release
+
+# Each client is released independently by pushing a tag on main:
+#
+#   go/vX.Y.Z    the Go module (Go requires the go/ prefix because the module
+#                lives in the go/ subdirectory)
+#   rust/vX.Y.Z  the typesafe-system-one crate on crates.io
+#
+# The tag must point at a commit on main and match the version in the code
+# (go/typesafe.go `Version`, rust/Cargo.toml `version`). The full CI matrix
+# runs on the tagged commit before anything is published. See RELEASING.md.
+
+on:
+  push:
+    tags:
+      - "go/v*"
+      - "rust/v*"
+
+permissions:
+  contents: read
+
+concurrency:
+  group: release-${{ github.ref }}
+  cancel-in-progress: false
+
+jobs:
+  validate:
+    name: Validate tag
+    runs-on: ubuntu-latest
+    outputs:
+      lang: ${{ steps.parse.outputs.lang }}
+      version: ${{ steps.parse.outputs.version }}
+      prerelease: ${{ steps.parse.outputs.prerelease }}
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          fetch-depth: 0
+
+      - name: Parse tag
+        id: parse
+        env:
+          TAG: ${{ github.ref_name }}
+        run: |
+          set -euo pipefail
+          re='^(go|rust)/v(([0-9]+)\.([0-9]+)\.([0-9]+)(-[0-9A-Za-z.-]+)?)$'
+          if [[ ! "$TAG" =~ $re ]]; then
+            echo "::error::Tag '$TAG' is not go/vX.Y.Z or rust/vX.Y.Z (semver)."
+            exit 1
+          fi
+          lang="${BASH_REMATCH[1]}"
+          version="${BASH_REMATCH[2]}"
+          prerelease=false
+          [[ -n "${BASH_REMATCH[6]}" ]] && prerelease=true
+          {
+            echo "lang=$lang"
+            echo "version=$version"
+            echo "prerelease=$prerelease"
+          } >> "$GITHUB_OUTPUT"
+          echo "Releasing $lang v$version (prerelease=$prerelease)"
+
+      - name: Tag must be on main
+        env:
+          TAG: ${{ github.ref_name }}
+        run: |
+          set -euo pipefail
+          commit="$(git rev-parse "refs/tags/$TAG^{commit}")"
+          git fetch --no-tags origin main
+          if ! git merge-base --is-ancestor "$commit" origin/main; then
+            echo "::error::Tag '$TAG' points at $commit, which is not on main. Tag a commit on main."
+            exit 1
+          fi
+
+      - name: Tag must match the code version
+        env:
+          LANG_: ${{ steps.parse.outputs.lang }}
+          VERSION: ${{ steps.parse.outputs.version }}
+        run: |
+          set -euo pipefail
+          case "$LANG_" in
+            go)
+              code="$(sed -n 's/^const Version = "\(.*\)"$/\1/p' go/typesafe.go)"
+              where="go/typesafe.go (const Version)"
+              ;;
+            rust)
+              code="$(python3 -c 'import tomllib; print(tomllib.load(open("rust/Cargo.toml", "rb"))["package"]["version"])')"
+              where="rust/Cargo.toml (package.version)"
+              ;;
+          esac
+          if [[ "$code" != "$VERSION" ]]; then
+            echo "::error::Tag version $VERSION does not match $where = '$code'. Bump the code version on main first."
+            exit 1
+          fi
+
+  ci:
+    name: CI
+    needs: validate
+    uses: ./.github/workflows/ci.yml
+
+  go:
+    name: Release Go module
+    needs: [validate, ci]
+    if: needs.validate.outputs.lang == 'go'
+    runs-on: ubuntu-latest
+    permissions:
+      contents: write
+    env:
+      TAG: ${{ github.ref_name }}
+      VERSION: ${{ needs.validate.outputs.version }}
+      PRERELEASE: ${{ needs.validate.outputs.prerelease }}
+      MODULE: github.com/haileyok/typesafe-client/go
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          fetch-depth: 0
+
+      - uses: actions/setup-go@v5
+        with:
+          go-version: stable
+          cache: false
+
+      - name: Publish to the Go module proxy
+        run: |
+          set -euo pipefail
+          # Fetching the version through proxy.golang.org makes it immediately
+          # installable and triggers pkg.go.dev indexing. Run outside any
+          # module so the local go.mod is not involved.
+          cd "$(mktemp -d)"
+          for attempt in $(seq 1 10); do
+            if GOPROXY=https://proxy.golang.org GOFLAGS=-mod=mod go list -m -json "$MODULE@v$VERSION"; then
+              exit 0
+            fi
+            echo "Proxy has not seen v$VERSION yet (attempt $attempt); retrying in 15s."
+            sleep 15
+          done
+          echo "::error::proxy.golang.org did not serve $MODULE@v$VERSION"
+          exit 1
+
+      - name: Create GitHub release
+        env:
+          GH_TOKEN: ${{ github.token }}
+        run: |
+          set -euo pipefail
+          if gh release view "$TAG" >/dev/null 2>&1; then
+            echo "Release $TAG already exists."
+            exit 0
+          fi
+          prev="$(git tag --list 'go/v*' --sort=-v:refname | grep -vxF "$TAG" | head -n1 || true)"
+          args=(--verify-tag --generate-notes --title "Go v$VERSION")
+          [[ -n "$prev" ]] && args+=(--notes-start-tag "$prev")
+          [[ "$PRERELEASE" == "true" ]] && args+=(--prerelease)
+          notes="$(printf 'Go module `%s` v%s.\n\n```sh\ngo get %s@v%s\n```\n\n[pkg.go.dev](https://pkg.go.dev/%s@v%s)\n' \
+            "$MODULE" "$VERSION" "$MODULE" "$VERSION" "$MODULE" "$VERSION")"
+          gh release create "$TAG" "${args[@]}" --notes "$notes"
+
+  rust-publish:
+    name: Publish crate
+    needs: [validate, ci]
+    if: needs.validate.outputs.lang == 'rust'
+    runs-on: ubuntu-latest
+    # Trusted publishing is configured on crates.io for this workflow file and
+    # environment; the environment also limits deployments to rust/v* tags.
+    environment: release
+    permissions:
+      contents: read
+      id-token: write
+    env:
+      VERSION: ${{ needs.validate.outputs.version }}
+      CRATE: typesafe-system-one
+      # Only for bootstrapping the very first publish (crates.io requires a
+      # crate to exist before trusted publishing can be configured). Delete
+      # the secret once trusted publishing works; see RELEASING.md.
+      BOOTSTRAP_TOKEN: ${{ secrets.CARGO_REGISTRY_TOKEN }}
+    defaults:
+      run:
+        working-directory: rust
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: dtolnay/rust-toolchain@stable
+
+      - name: Check whether this version is already published
+        id: exists
+        run: |
+          set -euo pipefail
+          code="$(curl -s -o /dev/null -w '%{http_code}' \
+            -A 'haileyok/typesafe-client release workflow' \
+            "https://crates.io/api/v1/crates/$CRATE/$VERSION")"
+          if [[ "$code" == "200" ]]; then
+            echo "$CRATE $VERSION is already on crates.io; skipping publish."
+            echo "published=true" >> "$GITHUB_OUTPUT"
+          else
+            echo "published=false" >> "$GITHUB_OUTPUT"
+          fi
+
+      - name: Authenticate with crates.io (trusted publishing)
+        id: auth
+        if: steps.exists.outputs.published != 'true' && env.BOOTSTRAP_TOKEN == ''
+        uses: rust-lang/crates-io-auth-action@v1
+
+      - name: Publish
+        if: steps.exists.outputs.published != 'true'
+        env:
+          CARGO_REGISTRY_TOKEN: ${{ steps.auth.outputs.token || env.BOOTSTRAP_TOKEN }}
+        run: cargo publish --locked
+
+  rust-release:
+    name: Create GitHub release (Rust)
+    needs: [validate, rust-publish]
+    runs-on: ubuntu-latest
+    permissions:
+      contents: write
+    env:
+      TAG: ${{ github.ref_name }}
+      VERSION: ${{ needs.validate.outputs.version }}
+      PRERELEASE: ${{ needs.validate.outputs.prerelease }}
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          fetch-depth: 0
+
+      - name: Create GitHub release
+        env:
+          GH_TOKEN: ${{ github.token }}
+        run: |
+          set -euo pipefail
+          if gh release view "$TAG" >/dev/null 2>&1; then
+            echo "Release $TAG already exists."
+            exit 0
+          fi
+          prev="$(git tag --list 'rust/v*' --sort=-v:refname | grep -vxF "$TAG" | head -n1 || true)"
+          args=(--verify-tag --generate-notes --title "Rust v$VERSION")
+          [[ -n "$prev" ]] && args+=(--notes-start-tag "$prev")
+          [[ "$PRERELEASE" == "true" ]] && args+=(--prerelease)
+          notes="$(printf 'Crate `typesafe-system-one` v%s.\n\n```sh\ncargo add typesafe-system-one@%s\n```\n\n[crates.io](https://crates.io/crates/typesafe-system-one/%s) · [docs.rs](https://docs.rs/typesafe-system-one/%s)\n' \
+            "$VERSION" "$VERSION" "$VERSION" "$VERSION")"
+          gh release create "$TAG" "${args[@]}" --notes "$notes"

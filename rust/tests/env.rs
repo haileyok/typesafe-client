@@ -5,7 +5,7 @@
 
 use std::sync::{Mutex, MutexGuard, OnceLock};
 
-use typesafe_client::{Client, LogLevel};
+use typesafe_system_one::{Client, LogLevel};
 
 /// The global lock serializing all env-mutating tests.
 static ENV_LOCK: OnceLock<Mutex<()>> = OnceLock::new();
@@ -150,7 +150,7 @@ fn debug_shows_no_api_key() {
         .unwrap();
     let debug = format!("{client:?}");
     assert!(!debug.contains("sk-super-secret"), "{debug}");
-    let builder = typesafe_client::Client::builder().api_key("sk-super-secret");
+    let builder = typesafe_system_one::Client::builder().api_key("sk-super-secret");
     let debug = format!("{builder:?}");
     assert!(!debug.contains("sk-super-secret"), "{debug}");
 }
@@ -160,7 +160,7 @@ fn bad_settings_are_config_errors() {
     // Missing key entirely (with a clean env).
     with_env(&[(env_key(), None)], || {
         let error = Client::from_env().unwrap_err();
-        assert!(matches!(error, typesafe_client::Error::Config(_)));
+        assert!(matches!(error, typesafe_system_one::Error::Config(_)));
     });
     // Zero timeout.
     let error = Client::builder()
@@ -168,17 +168,17 @@ fn bad_settings_are_config_errors() {
         .timeout(std::time::Duration::ZERO)
         .build()
         .unwrap_err();
-    assert!(matches!(error, typesafe_client::Error::Config(_)));
+    assert!(matches!(error, typesafe_system_one::Error::Config(_)));
     // Jitter out of range.
     let error = Client::builder()
         .api_key("sk")
-        .retry_policy(typesafe_client::RetryPolicy {
+        .retry_policy(typesafe_system_one::RetryPolicy {
             backoff_jitter: 1.5,
             ..Default::default()
         })
         .build()
         .unwrap_err();
-    assert!(matches!(error, typesafe_client::Error::Config(_)));
+    assert!(matches!(error, typesafe_system_one::Error::Config(_)));
 }
 
 // Distinct env-var names per test body would be nice, but the real names are

@@ -4,6 +4,8 @@ on:
   push:
     branches: [main]
   pull_request:
+  # The release workflow calls this to test the exact tagged commit.
+  workflow_call:
 
 permissions:
   contents: read
@@ -65,9 +67,13 @@ jobs:
       - if: matrix.rust == 'stable'
         run: cargo fmt --check
       - if: matrix.rust == 'stable'
-        run: cargo clippy --all-targets -- -D warnings
+        run: cargo clippy --locked --all-targets -- -D warnings
       - if: matrix.rust == 'stable'
         run: cargo doc --no-deps
         env:
           RUSTDOCFLAGS: -Dwarnings
-      - run: cargo test
+      # --locked fails if Cargo.lock is stale (e.g. a version bump without
+      # updating it), which would otherwise break `cargo publish --locked`.
+      - run: cargo test --locked
+      - if: matrix.rust == 'stable'
+        run: cargo publish --dry-run --locked

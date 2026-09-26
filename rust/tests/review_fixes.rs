@@ -7,7 +7,9 @@ use serde_json::json;
 use wiremock::matchers::{method, path};
 use wiremock::{Mock, MockServer, ResponseTemplate};
 
-use typesafe_client::{Choice, Client, Error, Noul, RequestOptions, RetryPolicy, SystemOneRequest};
+use typesafe_system_one::{
+    Choice, Client, Error, Noul, RequestOptions, RetryPolicy, SystemOneRequest,
+};
 
 async fn setup(body: serde_json::Value) -> (MockServer, Client) {
     let server = MockServer::start().await;
@@ -232,7 +234,8 @@ async fn usage_and_legend_value_types_are_validated() {
                "legend": legend, "probabilities": {"0": 1.0}})
     };
     let request = || {
-        SystemOneRequest::new("x").question("s", typesafe_client::Score::new("S?", ["lo", "hi"]))
+        SystemOneRequest::new("x")
+            .question("s", typesafe_system_one::Score::new("S?", ["lo", "hi"]))
     };
     let cases = [
         (

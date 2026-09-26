@@ -49,7 +49,7 @@ impl NoulCriteria {
 /// A yes/no question, answered with the probability of yes.
 ///
 /// ```no_run
-/// # use typesafe_client::Noul;
+/// # use typesafe_system_one::Noul;
 /// let spam = Noul::new("Is this message spam?")
 ///     .criteria_true("Unsolicited advertising")
 ///     .criteria_false("A legitimate conversation");
@@ -94,7 +94,7 @@ impl Noul {
     /// `Some(Value::Null)` to send an explicit `null` for a side.
     ///
     /// ```no_run
-    /// # use typesafe_client::Noul;
+    /// # use typesafe_system_one::Noul;
     /// let urgent = Noul::new("Is this urgent?")
     ///     .criteria(Some("Time-sensitive"), None::<&str>);
     /// ```
@@ -143,7 +143,7 @@ impl Noul {
 /// name alone.
 ///
 /// ```no_run
-/// # use typesafe_client::Choice;
+/// # use typesafe_system_one::Choice;
 /// let tone = Choice::new("What is the tone of this message?")
 ///     .option("calm", "A neutral or polite message")
 ///     .option("angry", "An upset or hostile message");
@@ -238,7 +238,7 @@ impl Choice {
 /// validates both before any network I/O.
 ///
 /// ```no_run
-/// # use typesafe_client::Score;
+/// # use typesafe_system_one::Score;
 /// let urgency = Score::new(
 ///     "How urgent is this?",
 ///     ["Can wait", "Needs attention this week", "Needs attention today"],
@@ -289,7 +289,7 @@ impl Score {
 /// Any of the three question kinds, discriminated on the wire by `type`.
 ///
 /// ```
-/// # use typesafe_client::{Noul, Question};
+/// # use typesafe_system_one::{Noul, Question};
 /// let q: Question = Noul::new("Is this about billing?").into();
 /// assert_eq!(
 ///     serde_json::to_value(&q).unwrap()["type"],

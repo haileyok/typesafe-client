@@ -36,7 +36,7 @@ pub(crate) struct RawResponse {
 ///
 /// ```
 /// # use std::time::Duration;
-/// # use typesafe_client::{Client, RequestOptions, RetryPolicy, SystemOneRequest, Noul};
+/// # use typesafe_system_one::{Client, RequestOptions, RetryPolicy, SystemOneRequest, Noul};
 /// # fn demo(client: Client) {
 /// let options = RequestOptions::new()
 ///     .timeout(Duration::from_secs(30))
@@ -48,7 +48,7 @@ pub(crate) struct RawResponse {
 /// let response = client
 ///     .system_one_with(request, options)
 ///     .await?;
-/// # Ok::<_, typesafe_client::Error>(response)
+/// # Ok::<_, typesafe_system_one::Error>(response)
 /// # };
 /// # }
 /// ```
@@ -115,8 +115,8 @@ struct Inner {
 /// dropping the returned future.
 ///
 /// ```
-/// # use typesafe_client::Client;
-/// # fn demo() -> Result<(), typesafe_client::Error> {
+/// # use typesafe_system_one::Client;
+/// # fn demo() -> Result<(), typesafe_system_one::Error> {
 /// let client = Client::builder()
 ///     .api_key("sk-live-...")
 ///     .default_header("X-Agent-Client", "my-app")

@@ -7,10 +7,10 @@
 //! cargo run --example quickstart
 //! ```
 
-use typesafe_client::{Choice, Client, Noul, Score, SystemOneRequest};
+use typesafe_system_one::{Choice, Client, Noul, Score, SystemOneRequest};
 
 #[tokio::main]
-async fn main() -> Result<(), typesafe_client::Error> {
+async fn main() -> Result<(), typesafe_system_one::Error> {
     let client = Client::from_env()?;
 
     let request = SystemOneRequest::new(

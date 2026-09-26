@@ -1,17 +1,19 @@
 [package]
-name = "typesafe-client"
+name = "typesafe-system-one"
 version = "0.1.0"
 edition = "2021"
 rust-version = "1.88"
 license = "MIT"
 repository = "https://github.com/haileyok/typesafe-client"
+homepage = "https://github.com/haileyok/typesafe-client"
+documentation = "https://docs.rs/typesafe-system-one"
 description = "Unofficial async Rust client for the TypeSafe AI System One API (Jev)"
 keywords = ["typesafe", "ai", "llm", "client", "async"]
 categories = ["api-bindings", "asynchronous"]
 readme = "README.md"
 
 [lib]
-name = "typesafe_client"
+name = "typesafe_system_one"
 path = "src/lib.rs"
 
 [features]

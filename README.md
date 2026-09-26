@@ -14,7 +14,7 @@ answers instead of generated text:
 | Language | Directory | Install |
 |---|---|---|
 | Go (1.22+, stdlib only) | [`go/`](go) | `go get github.com/haileyok/typesafe-client/go` |
-| Rust (async, reqwest) | [`rust/`](rust) | `cargo add typesafe-client --git https://github.com/haileyok/typesafe-client` |
+| Rust (async, reqwest, 1.88+) | [`rust/`](rust) | `cargo add typesafe-system-one` ([crates.io](https://crates.io/crates/typesafe-system-one), [docs.rs](https://docs.rs/typesafe-system-one)) |
 
 TypeSafe publishes official SDKs for [Python](https://github.com/typesafe-ai/typesafe-sdk-python)
 and [JavaScript/TypeScript](https://github.com/typesafe-ai/typesafe-sdk-js). These
@@ -84,6 +84,11 @@ Tips for using the API well, from TypeSafe's docs:
   Pin a versioned model (e.g. `jev-1.13.0`) once you do, because aliases move.
 - **Keep math, counting, and date arithmetic in code.** See
   [Jev jaggedness](https://docs.typesafe.ai/model-jaggedness/jev-1.13).
+
+## Releases
+
+Each client is versioned independently: `go/vX.Y.Z` tags release the Go
+module and `rust/vX.Y.Z` tags release the crate. See [RELEASING.md](RELEASING.md).
 
 ## Status
 

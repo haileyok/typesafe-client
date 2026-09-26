@@ -23,7 +23,7 @@ pub(crate) const RETRY_AFTER_HEADER: &str = "retry-after";
 ///
 /// ```
 /// use std::time::Duration;
-/// use typesafe_client::{Client, RetryPolicy};
+/// use typesafe_system_one::{Client, RetryPolicy};
 ///
 /// let client = Client::builder()
 ///     .api_key("key")
