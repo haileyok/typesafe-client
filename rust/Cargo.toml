@@ -1,0 +1,39 @@
+[package]
+name = "typesafe-client"
+version = "0.1.0"
+edition = "2021"
+rust-version = "1.88"
+license = "MIT"
+repository = "https://github.com/haileyok/typesafe-client"
+description = "Unofficial async Rust client for the TypeSafe AI System One API (Jev)"
+keywords = ["typesafe", "ai", "llm", "client", "async"]
+categories = ["api-bindings", "asynchronous"]
+readme = "README.md"
+
+[lib]
+name = "typesafe_client"
+path = "src/lib.rs"
+
+[features]
+default = []
+native-tls = ["reqwest/native-tls"]
+
+[dependencies]
+reqwest = { version = "0.13", default-features = false, features = ["rustls", "charset"] }
+serde = { version = "1.0", features = ["derive"] }
+serde_json = { version = "1.0", features = ["preserve_order"] }
+thiserror = "2.0"
+tokio = { version = "1.0", features = ["time"] }
+fastrand = "2.5"
+httpdate = "1.0"
+tracing = "0.1"
+
+[dev-dependencies]
+tokio = { version = "1.0", features = ["macros", "rt-multi-thread"] }
+wiremock = "0.6"
+
+[[example]]
+name = "quickstart"
+
+[[example]]
+name = "triage"

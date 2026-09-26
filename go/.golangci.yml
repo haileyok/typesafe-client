@@ -1,0 +1,28 @@
+version: "2"
+linters:
+  default: standard
+  enable:
+    - bodyclose
+    - errorlint
+    - gosec
+    - misspell
+    - noctx
+    - paralleltest
+    - revive
+  settings:
+    revive:
+      rules:
+        - name: exported
+        - name: package-comments
+        - name: var-naming
+  exclusions:
+    rules:
+      # Examples read the API key from the environment and print results.
+      - path: examples/
+        linters: [gosec]
+      # Config tests use t.Setenv, which is incompatible with t.Parallel.
+      - path: config_test\.go
+        linters: [paralleltest]
+formatters:
+  enable:
+    - gofmt
