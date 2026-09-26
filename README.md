@@ -13,7 +13,7 @@ answers instead of generated text:
 
 | Language | Directory | Install |
 |---|---|---|
-| Go (1.22+, stdlib only) | [`go/`](go) | `go get github.com/haileyok/typesafe-client/go` |
+| Go (1.22+, stdlib only) | [`go/`](go) | `go get github.com/haileyok/typesafe-client/go@latest` ([pkg.go.dev](https://pkg.go.dev/github.com/haileyok/typesafe-client/go)) |
 | Rust (async, reqwest, 1.88+) | [`rust/`](rust) | `cargo add typesafe-system-one` ([crates.io](https://crates.io/crates/typesafe-system-one), [docs.rs](https://docs.rs/typesafe-system-one)) |
 
 TypeSafe publishes official SDKs for [Python](https://github.com/typesafe-ai/typesafe-sdk-python)
@@ -35,37 +35,90 @@ clients bring the same behavior to Go and Rust:
 - `GET /v1/models`, gateway support (OpenRouter, Vercel AI Gateway, your own proxy), and
   logging with credentials redacted
 
-## Go
+## Getting started
+
+Both clients read your API key from `TYPESAFE_API_KEY`. Create one in the
+[TypeSafe console](https://console.typesafe.ai/keys).
+
+### Go
+
+```sh
+go get github.com/haileyok/typesafe-client/go@latest
+```
+
+The import path ends in `/go`, but the package is named `typesafe`:
 
 ```go
-client, err := typesafe.NewClient() // reads TYPESAFE_API_KEY
-resp, err := client.SystemOne(ctx, typesafe.Request{
-	State: "Help! My payouts have been failing for 3 days.",
-	Questions: typesafe.Questions{
-		"is_urgent":  typesafe.Noul("Does this convey urgency?"),
-		"department": typesafe.ChoiceNames("Which team should handle this?", "billing", "technical", "sales"),
-		"frustration": typesafe.Score("How frustrated is the customer?", "Calm", "Frustrated", "Very angry"),
-	},
-})
-dept, _ := resp.Choice("department")
-fmt.Println(dept.Choice, dept.Confidence)
+package main
+
+import (
+	"context"
+	"fmt"
+	"log"
+
+	typesafe "github.com/haileyok/typesafe-client/go"
+)
+
+func main() {
+	client, err := typesafe.NewClient() // reads TYPESAFE_API_KEY
+	if err != nil {
+		log.Fatal(err)
+	}
+	resp, err := client.SystemOne(context.Background(), typesafe.Request{
+		State: "Help! My payouts have been failing for 3 days.",
+		Questions: typesafe.Questions{
+			"is_urgent":  typesafe.Noul("Does this convey urgency?"),
+			"department": typesafe.ChoiceNames("Which team should handle this?", "billing", "technical", "sales"),
+		},
+	})
+	if err != nil {
+		log.Fatal(err)
+	}
+	urgent, _ := resp.Noul("is_urgent")
+	dept, _ := resp.Choice("department")
+	fmt.Printf("urgent=%.2f department=%s (confidence %.2f)\n", urgent.Noul, dept.Choice, dept.Confidence)
+}
 ```
 
-## Rust
+See the [Go README](go/README.md) for the full guide and
+[pkg.go.dev](https://pkg.go.dev/github.com/haileyok/typesafe-client/go) for the API reference.
+
+### Rust
+
+The client is async, so add tokio alongside it:
+
+```sh
+cargo add typesafe-system-one
+cargo add tokio --features macros,rt-multi-thread
+```
+
+The crate is imported as `typesafe_system_one`:
 
 ```rust
-let client = Client::from_env()?; // reads TYPESAFE_API_KEY
-let resp = client
-    .system_one(
-        SystemOneRequest::new("Help! My payouts have been failing for 3 days.")
-            .question("is_urgent", Noul::new("Does this convey urgency?"))
-            .question("department", Choice::from_options("Which team should handle this?", ["billing", "technical", "sales"]))
-            .question("frustration", Score::new("How frustrated is the customer?", ["Calm", "Frustrated", "Very angry"])),
-    )
-    .await?;
-let dept = resp.choice("department").unwrap();
-println!("{} {}", dept.choice, dept.confidence);
+use typesafe_system_one::{Choice, Client, Error, Noul, SystemOneRequest};
+
+#[tokio::main]
+async fn main() -> Result<(), Error> {
+    let client = Client::from_env()?; // reads TYPESAFE_API_KEY
+    let resp = client
+        .system_one(
+            SystemOneRequest::new("Help! My payouts have been failing for 3 days.")
+                .question("is_urgent", Noul::new("Does this convey urgency?"))
+                .question(
+                    "department",
+                    Choice::from_options("Which team should handle this?", ["billing", "technical", "sales"]),
+                ),
+        )
+        .await?;
+    let urgent = resp.noul("is_urgent").expect("asked is_urgent");
+    let dept = resp.choice("department").expect("asked department");
+    println!("urgent={:.2} department={} (confidence {:.2})", urgent.noul, dept.choice, dept.confidence);
+    Ok(())
+}
 ```
+
+See the [Rust README](rust/README.md) for the full guide and
+[docs.rs](https://docs.rs/typesafe-system-one) for the API reference.
 
 ## Behavior contract
 

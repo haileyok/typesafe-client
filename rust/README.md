@@ -9,34 +9,44 @@ System One answers *noul* (yes/no), *choice* (one-of-many), and *score*
 (rubric rating) questions about arbitrary JSON content ("state") in a single
 request, with calibrated probabilities and a confidence value you can gate on.
 The behavior contract both clients in this repository implement is
-[`../SPEC.md`](../SPEC.md); this README is a guide to the Rust crate.
+[`SPEC.md`](https://github.com/haileyok/typesafe-client/blob/main/SPEC.md); this README is a guide to the Rust crate.
 
 ## Install
 
+The client is async, so your program also needs an async runtime. It's built on
+[tokio](https://crates.io/crates/tokio) (via reqwest), so add both:
+
 ```sh
 cargo add typesafe-system-one
+cargo add tokio --features macros,rt-multi-thread
 ```
 
-or in `Cargo.toml`:
+which gives you, in `Cargo.toml`:
 
 ```toml
 [dependencies]
 typesafe-system-one = "0.1"
+tokio = { version = "1", features = ["macros", "rt-multi-thread"] }
 ```
 
-The library is imported as `typesafe_system_one`. The minimum supported Rust
-version is **1.88**, set by the dependency tree. (The crate lives in the
+If you build structured (JSON) instructions or state with the `json!` macro,
+also `cargo add serde_json`.
+
+In code, the crate is `typesafe_system_one`:
+
+```rust
+use typesafe_system_one::{Choice, Client, Noul, Score, SystemOneRequest};
+```
+
+You need an API key from the [TypeSafe console](https://console.typesafe.ai/keys).
+`Client::from_env()` reads it from `TYPESAFE_API_KEY`, or pass it with
+`Client::builder().api_key(...)`.
+
+The minimum supported Rust version is **1.88**, set by the dependency tree.
+There is no blocking client. (The crate lives in the
 [`haileyok/typesafe-client`](https://github.com/haileyok/typesafe-client)
 repository alongside a Go client. The `typesafe-client` name on crates.io
 belongs to an unrelated project.)
-
-The client is async only — there is no blocking client. Run it from an async
-runtime such as [tokio](https://crates.io/crates/tokio):
-
-```toml
-[dev-dependencies]
-tokio = { version = "1", features = ["macros", "rt-multi-thread"] }
-```
 
 The crate uses rustls for TLS. The `native-tls` cargo feature additionally
 compiles in reqwest's system TLS backend. To use it, build your own
@@ -49,34 +59,71 @@ typesafe-system-one = { version = "0.1", features = ["native-tls"] }
 
 ## Quick start
 
+A complete program. Put it in `src/main.rs`:
+
 ```rust,no_run
-use typesafe_system_one::{Client, Noul, Choice, Score, SystemOneRequest};
+use typesafe_system_one::{Choice, Client, Error, Noul, Score, SystemOneRequest};
 
 #[tokio::main]
-async fn main() -> Result<(), typesafe_system_one::Error> {
+async fn main() -> Result<(), Error> {
     let client = Client::from_env()?; // reads TYPESAFE_API_KEY
 
     let response = client
         .system_one(
-            SystemOneRequest::new("I was charged twice.")
-                .question("billing", Noul::new("Is this about billing?"))
+            SystemOneRequest::new("Help! My payouts have been failing for 3 days.")
+                .question("is_urgent", Noul::new("Does this convey urgency?"))
                 .question(
-                    "tone",
-                    Choice::new("What is the tone?")
-                        .option("calm", "A neutral or polite message")
-                        .option("angry", "An upset or hostile message"),
+                    "department",
+                    Choice::new("Which team should handle this?")
+                        .option("billing", "Payments, invoicing, refunds")
+                        .option("technical", "Bugs, outages, integrations")
+                        .option("sales", "Pricing, upgrades, new accounts"),
                 )
                 .question(
-                    "urgency",
-                    Score::new("How urgent?", ["Can wait", "Needs attention today"]),
+                    "frustration",
+                    Score::new(
+                        "How frustrated is the customer?",
+                        ["Calm", "Frustrated", "Very angry"],
+                    ),
                 ),
         )
         .await?;
 
-    println!("model: {}", response.model);
+    // A successful response always has an answer for every question asked,
+    // so these lookups only fail on a typo in the question ID.
+    let urgent = response.noul("is_urgent").expect("asked is_urgent");
+    let department = response.choice("department").expect("asked department");
+    let frustration = response.score("frustration").expect("asked frustration");
+
+    println!("urgent:      P(yes) = {:.2}", urgent.noul);
+    println!(
+        "department:  {} (confidence {:.2})",
+        department.choice, department.confidence
+    );
+    println!("frustration: {:.2} on a 0–2 scale", frustration.score);
+    println!(
+        "answered by {} (request {})",
+        response.model,
+        response.request_id.as_deref().unwrap_or("-")
+    );
     Ok(())
 }
 ```
+
+Starting from an empty directory:
+
+```sh
+cargo new triage && cd triage
+cargo add typesafe-system-one
+cargo add tokio --features macros,rt-multi-thread
+# replace src/main.rs with the program above
+export TYPESAFE_API_KEY=...
+cargo run
+```
+
+More complete programs are in [`examples/`](https://github.com/haileyok/typesafe-client/tree/main/rust/examples): `quickstart.rs`, and
+`triage.rs`, which shows speculative fan-out and confidence-gated routing. The
+API reference is on [docs.rs](https://docs.rs/typesafe-system-one).
 
 ## Configuration
 

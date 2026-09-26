@@ -46,6 +46,23 @@ jobs:
           version: v2.10.1
           working-directory: go
 
+  readme-examples:
+    name: README examples
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-go@v5
+        with:
+          go-version: stable
+          cache-dependency-path: go/go.mod
+      - uses: dtolnay/rust-toolchain@stable
+      - uses: Swatinem/rust-cache@v2
+        with:
+          workspaces: rust
+      # Builds every complete program in README.md, go/README.md, and
+      # rust/README.md against the local source, as a user would paste it.
+      - run: python3 scripts/check_readme_examples.py
+
   rust:
     name: Rust ${{ matrix.rust }}
     runs-on: ubuntu-latest
