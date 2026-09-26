@@ -35,7 +35,9 @@ jobs:
       - uses: actions/checkout@v4
       - uses: actions/setup-go@v5
         with:
-          go-version: stable
+          # Must not be newer than the Go that built the pinned golangci-lint
+          # (v2.10.1 is built with go1.26); a newer stdlib makes it panic.
+          go-version: "1.26.x"
           cache-dependency-path: go/go.mod
       - uses: golangci/golangci-lint-action@v8
         with:
