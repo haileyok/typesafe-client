@@ -3,48 +3,98 @@
 An unofficial Go client for the [TypeSafe AI](https://typesafe.ai) System One API
 (Jev). It has no dependencies outside the standard library and needs Go 1.22 or later.
 
-```sh
-go get github.com/haileyok/typesafe-client/go
-```
-
-```go
-import typesafe "github.com/haileyok/typesafe-client/go"
-```
-
 > Not affiliated with or endorsed by TypeSafe. The client follows the behavior of the
 > official [Python](https://github.com/typesafe-ai/typesafe-sdk-python) and
 > [JavaScript](https://github.com/typesafe-ai/typesafe-sdk-js) SDKs. See
 > [SPEC.md](../SPEC.md) for the full contract.
 
-## Quick start
+## Install
 
-```go
-client, err := typesafe.NewClient() // reads TYPESAFE_API_KEY
-if err != nil {
-	log.Fatal(err)
-}
+From inside your Go module:
 
-resp, err := client.SystemOne(ctx, typesafe.Request{
-	State: "Help! My payouts have been failing for 3 days.",
-	Questions: typesafe.Questions{
-		"is_urgent":   typesafe.Noul("Does this convey urgency?"),
-		"department":  typesafe.ChoiceNames("Which team should handle this?", "billing", "technical", "sales"),
-		"frustration": typesafe.Score("How frustrated is the customer?", "Calm", "Frustrated", "Very angry"),
-	},
-})
-if err != nil {
-	log.Fatal(err)
-}
-
-urgent, _ := resp.Noul("is_urgent")       // urgent.Noul: P(yes), 0..1
-dept, _ := resp.Choice("department")      // dept.Choice, dept.Probabilities, dept.Confidence
-mood, _ := resp.Score("frustration")      // mood.Score (0..2, may fall between levels), mood.Confidence
-fmt.Println(resp.Model, resp.RequestID)   // "jev-1.13.0": the versioned model that answered
+```sh
+go get github.com/haileyok/typesafe-client/go@latest
 ```
 
-Runnable programs: [`examples/quickstart`](examples/quickstart) and
+Then import it:
+
+```go
+import typesafe "github.com/haileyok/typesafe-client/go"
+```
+
+The import path ends in `/go` because the module lives in the `go/` directory of
+this repository, but **the package is named `typesafe`**, and that's the
+identifier you use in code (`typesafe.NewClient`, `typesafe.Noul`, and so on).
+The explicit `typesafe` name on the import just makes that obvious. `goimports`
+and `gopls` add it for you.
+
+You need an API key from the [TypeSafe console](https://console.typesafe.ai/keys).
+The client reads it from `TYPESAFE_API_KEY` unless you pass `WithAPIKey`.
+
+## Quick start
+
+A complete program. Save it as `main.go` in your module:
+
+```go
+package main
+
+import (
+	"context"
+	"fmt"
+	"log"
+	"time"
+
+	typesafe "github.com/haileyok/typesafe-client/go"
+)
+
+func main() {
+	client, err := typesafe.NewClient() // reads TYPESAFE_API_KEY
+	if err != nil {
+		log.Fatal(err)
+	}
+
+	ctx, cancel := context.WithTimeout(context.Background(), 30*time.Second)
+	defer cancel()
+
+	resp, err := client.SystemOne(ctx, typesafe.Request{
+		State: "Help! My payouts have been failing for 3 days.",
+		Questions: typesafe.Questions{
+			"is_urgent":   typesafe.Noul("Does this convey urgency?"),
+			"department":  typesafe.ChoiceNames("Which team should handle this?", "billing", "technical", "sales"),
+			"frustration": typesafe.Score("How frustrated is the customer?", "Calm", "Frustrated", "Very angry"),
+		},
+	})
+	if err != nil {
+		log.Fatal(err)
+	}
+
+	// A successful response always has an answer for every question asked.
+	urgent, _ := resp.Noul("is_urgent")
+	dept, _ := resp.Choice("department")
+	mood, _ := resp.Score("frustration")
+
+	fmt.Printf("urgent:      P(yes) = %.2f\n", urgent.Noul)
+	fmt.Printf("department:  %s (confidence %.2f)\n", dept.Choice, dept.Confidence)
+	fmt.Printf("frustration: %.2f on a 0–2 scale\n", mood.Score)
+	fmt.Printf("answered by %s (request %s)\n", resp.Model, resp.RequestID)
+}
+```
+
+Starting from an empty directory:
+
+```sh
+mkdir triage && cd triage
+go mod init example.com/triage
+go get github.com/haileyok/typesafe-client/go@latest
+# save the program above as main.go
+export TYPESAFE_API_KEY=...
+go run .
+```
+
+More complete programs: [`examples/quickstart`](examples/quickstart) and
 [`examples/triage`](examples/triage), which shows speculative fan-out and
-confidence-gated routing.
+confidence-gated routing. The API reference is on
+[pkg.go.dev](https://pkg.go.dev/github.com/haileyok/typesafe-client/go).
 
 ## Questions
 
