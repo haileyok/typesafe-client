@@ -8,7 +8,7 @@ use wiremock::matchers::{body_partial_json, header, method, path};
 use wiremock::MockServer;
 use wiremock::{Mock, ResponseTemplate};
 
-use typesafe_client::{
+use typesafe_system_one::{
     ApiErrorKind, Choice, Client, Error, LogLevel, Noul, RequestOptions, RetryPolicy, Score,
     SystemOneRequest,
 };
@@ -662,7 +662,7 @@ async fn unknown_answer_type_kept_and_missing_usage_defaults() {
     assert_eq!(response.usage.input_tokens, 0);
     assert_eq!(response.usage.output_tokens, 0);
     match response.answers.get("future").unwrap() {
-        typesafe_client::Answer::Unknown { kind, raw } => {
+        typesafe_system_one::Answer::Unknown { kind, raw } => {
             assert_eq!(kind, "vibes");
             assert_eq!(raw["vibe"], "immaculate");
         }

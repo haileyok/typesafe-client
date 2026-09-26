@@ -8,8 +8,8 @@
 //! # Quick start
 //!
 //! ```no_run
-//! # async fn run() -> Result<(), typesafe_client::Error> {
-//! use typesafe_client::{Client, Noul, Choice, Score, SystemOneRequest};
+//! # async fn run() -> Result<(), typesafe_system_one::Error> {
+//! use typesafe_system_one::{Client, Noul, Choice, Score, SystemOneRequest};
 //!
 //! let client = Client::from_env()?;
 //!

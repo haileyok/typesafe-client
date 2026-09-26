@@ -4,7 +4,7 @@
 //! cargo test --test live -- --ignored
 //! ```
 
-use typesafe_client::{Choice, Client, Noul, Score, SystemOneRequest};
+use typesafe_system_one::{Choice, Client, Noul, Score, SystemOneRequest};
 
 fn maybe_client() -> Option<Client> {
     let key = std::env::var("TYPESAFE_API_KEY")

@@ -15,7 +15,7 @@ use crate::questions::{validate, Question};
 /// the response uses to key its answers.
 ///
 /// ```
-/// # use typesafe_client::{Noul, Score, SystemOneRequest};
+/// # use typesafe_system_one::{Noul, Score, SystemOneRequest};
 /// let request = SystemOneRequest::new("Please help.")
 ///     .model("jev-1.13.0")
 ///     .question("billing", Noul::new("Is this about billing?"))
