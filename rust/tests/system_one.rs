@@ -13,6 +13,10 @@ use typesafe_system_one::{
     SystemOneRequest,
 };
 
+/// The client's User-Agent / X-TypeSafe-SDK value, derived from the crate
+/// version so version bumps don't require test edits.
+const UA: &str = concat!("typesafe-client-rust/", env!("CARGO_PKG_VERSION"));
+
 /// A fast retry policy: 5ms backoff, no jitter.
 fn fast_retry() -> RetryPolicy {
     RetryPolicy {
@@ -260,8 +264,8 @@ async fn request_headers_and_precedence() {
         .and(header("authorization", "Bearer sk-test-key"))
         .and(header("accept", "application/json"))
         .and(header("content-type", "application/json"))
-        .and(header("user-agent", "typesafe-client-rust/0.1.0"))
-        .and(header("x-typesafe-sdk", "typesafe-client-rust/0.1.0"))
+        .and(header("user-agent", UA))
+        .and(header("x-typesafe-sdk", UA))
         .and(header("x-typesafe-runtime", runtime_header()))
         .and(header("x-agent-client", "per-call-wins"))
         .and(header("x-custom", "custom-value"))
@@ -316,9 +320,9 @@ async fn sdk_owned_headers_win_over_callers() {
     Mock::given(method("POST"))
         .and(path("/v1/systemone"))
         .and(header("authorization", "Bearer sk-test-key"))
-        .and(header("user-agent", "typesafe-client-rust/0.1.0"))
+        .and(header("user-agent", UA))
         .and(header("accept", "application/json"))
-        .and(header("x-typesafe-sdk", "typesafe-client-rust/0.1.0"))
+        .and(header("x-typesafe-sdk", UA))
         .and(header("x-typesafe-runtime", runtime_header()))
         .respond_with(ResponseTemplate::new(200).set_body_json(ok_body()))
         .mount(&server)
@@ -353,7 +357,7 @@ async fn sdk_owned_headers_win_over_callers() {
             .headers
             .get("user-agent")
             .and_then(|v| v.to_str().ok()),
-        Some("typesafe-client-rust/0.1.0")
+        Some(UA)
     );
     assert_eq!(
         requests[0]
@@ -374,7 +378,7 @@ async fn sdk_owned_headers_win_over_callers() {
             .headers
             .get("x-typesafe-sdk")
             .and_then(|v| v.to_str().ok()),
-        Some("typesafe-client-rust/0.1.0")
+        Some(UA)
     );
     assert_eq!(
         requests[0]
@@ -427,7 +431,7 @@ async fn header_precedence_is_case_insensitive() {
             .collect()
     };
     assert_eq!(get("authorization"), vec!["Bearer sk-test-key"]);
-    assert_eq!(get("user-agent"), vec!["typesafe-client-rust/0.1.0"]);
+    assert_eq!(get("user-agent"), vec![UA]);
     // Per-call headers beat client defaults regardless of letter case.
     assert_eq!(get("x-agent-client"), vec!["from-call"]);
     assert_eq!(get("x-other"), vec!["from-call"]);

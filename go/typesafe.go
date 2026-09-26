@@ -36,7 +36,7 @@ package typesafe
 
 // Version is the client version, sent in the User-Agent and X-TypeSafe-SDK
 // headers.
-const Version = "0.1.0"
+const Version = "0.1.1"
 
 // Defaults shared with TypeSafe's official SDKs.
 const (
